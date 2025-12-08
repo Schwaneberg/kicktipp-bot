@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.2] - 2025-12-08
+
+### 🚀 Features
+
+- **(docker)** Add deprecation notice for Docker Hub image
+- **(github)** Add bug report and config for discussions
+
+### 🐛 Bug Fixes
+
+- **(docker)** Remove TZ environment variable from docker-compose.yml
+- **(docker)** Remove TZ environment variable from docker-compose-build.yaml
+
+### 📚 Documentation
+
+- Add TZ environment variable to README and .env.example
+
+### ⚙️ Miscellaneous Tasks
+
+- **(workflows)** Update DockerHub login to GHCR in workflow files
+- **(github)** Remove Code of Conduct checkbox from bug report template
+
 ## [3.2.1] - 2025-11-17
 
 ### 🐛 Bug Fixes
