@@ -37,6 +37,7 @@ docker run \
 --name kicktipp-bot \
 --platform linux/amd64 \
 --env-file .env \
+-e TZ=Europe/Berlin \
 ghcr.io/antonengelhardt/kicktipp-bot:amd64
 ```
 
@@ -60,6 +61,7 @@ or deploy with Kubernetes.
 | `WEBHOOK_URL`                  | The URL of some generic webhook.                                     | `https://your-home-assistant-url.com/api/webhook/your-webhook-id` | No       |
 | `SENTRY_DSN`                   | The Sentry DSN for error reporting.                                  | `https://your-sentry-dsn.com`                                     | No       |
 | `SENTRY_ENVIRONMENT`           | The Sentry environment for error reporting.                          | `production`                                                      | No       |
+| `TZ`                           | The timezone for the container.                                      | `Europe/Berlin`                                                   | No       |
 
 ## Sentry
 
