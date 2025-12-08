@@ -1,0 +1,21 @@
+# This is to deprecate the Docker Hub image and warn users to use the new GHCR image
+
+FROM busybox:latest
+
+LABEL org.opencontainers.image.deprecated="true"
+LABEL deprecation.message="This image is deprecated. Please use ghcr.io/antonengelhardt/kicktipp-bot:amd64 instead"
+
+# Create a wrapper script that shows deprecation warning at runtime
+RUN echo '#!/bin/sh' > /deprecation-wrapper.sh && \
+    echo 'echo "╔═══════════════════════════════════════════════════════════════════╗"' >> /deprecation-wrapper.sh && \
+    echo 'echo "║                    ⚠️  DEPRECATION WARNING ⚠️                       ║"' >> /deprecation-wrapper.sh && \
+    echo 'echo "║                                                                   ║"' >> /deprecation-wrapper.sh && \
+    echo 'echo "║  This Docker Hub image is deprecated and will be removed soon.    ║"' >> /deprecation-wrapper.sh && \
+    echo 'echo "║                                                                   ║"' >> /deprecation-wrapper.sh && \
+    echo 'echo "║  Please update to: ghcr.io/antonengelhardt/kicktipp-bot:amd64     ║"' >> /deprecation-wrapper.sh && \
+    echo 'echo "║                                                                   ║"' >> /deprecation-wrapper.sh && \
+    echo 'echo "╚═══════════════════════════════════════════════════════════════════╝"' >> /deprecation-wrapper.sh && \
+    echo 'echo ""' >> /deprecation-wrapper.sh && \
+    chmod +x /deprecation-wrapper.sh
+
+ENTRYPOINT ["/deprecation-wrapper.sh"]
