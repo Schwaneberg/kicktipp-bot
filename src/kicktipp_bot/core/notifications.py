@@ -197,11 +197,11 @@ class NotificationManager:
             if self.webhook_enabled:
                 self._send_grouped_webhook_notification()
 
-            # Clear pending events after sending
-            self.pending_events = []
-
         except Exception as e:
             logger.error(f"Error sending grouped notifications: {e}")
+        finally:
+            # Clear pending events after sending (or attempting to send)
+            self.pending_events = []
 
     def _send_grouped_zapier_webhook(self) -> None:
         """Send grouped notification to Zapier webhook."""
