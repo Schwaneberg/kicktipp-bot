@@ -25,9 +25,6 @@ spec:
         app: kicktipp-bot
 
     spec:
-      imagePullSecrets:
-        - name: ghcr
-
       containers:
         - name: kicktipp-bot
           image: ghcr.io/antonengelhardt/kicktipp-bot:amd64
