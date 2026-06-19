@@ -103,7 +103,7 @@ class GameTipper:
                 self._submit_all_tips()
 
                 # Debug mode sleep
-                if self._is_debug_mode() and Config.RUN_EVERY_X_MINUTES != 0:
+                if self._is_debug_mode() and Config.RUN_EVERY_X_MINUTES() != 0:
                     logger.info(
                         "Local debug mode - sleeping for 5 seconds to review results")
                     sleep(5)
@@ -254,7 +254,7 @@ class GameTipper:
             home_tip_field, away_tip_field = tip_fields
 
             # Check if already tipped
-            if not Config.OVERWRITE_TIPS and self._is_already_tipped(home_tip_field, away_tip_field):
+            if not Config.OVERWRITE_TIPS() and self._is_already_tipped(home_tip_field, away_tip_field):
                 home_val = SeleniumUtils.safe_get_attribute(
                     home_tip_field, 'value', 'home tip field') or ''
                 away_val = SeleniumUtils.safe_get_attribute(
@@ -300,7 +300,7 @@ class GameTipper:
             if self._enter_tip(home_tip_field, away_tip_field, tip):
                 try:
                     # Pass competition information
-                    competition = self.current_competition or Config.NAME_OF_COMPETITION or ''
+                    competition = self.current_competition or Config.NAME_OF_COMPETITION() or ''
                     self.notification_manager.send_all_notifications(
                         game_time, home_team, away_team, quotes, tip, competition
                     )
@@ -329,13 +329,13 @@ class GameTipper:
         time_until_game = game_time - datetime.now(ZoneInfo('Europe/Berlin'))
         logger.debug(f"Time until game: {time_until_game}")
 
-        if time_until_game > Config.TIME_UNTIL_GAME:
+        if time_until_game > Config.TIME_UNTIL_GAME():
             logger.info(
-                f"Game starts in more than {Config.TIME_UNTIL_GAME}. Skipping...")
+                f"Game starts in more than {Config.TIME_UNTIL_GAME()}. Skipping...")
             return False
 
         logger.info(
-            f"Game starts in less than {Config.TIME_UNTIL_GAME}. Proceeding with tip...")
+            f"Game starts in less than {Config.TIME_UNTIL_GAME()}. Proceeding with tip...")
         return True
 
     def _enter_tip(self, home_field, away_field, tip: tuple) -> bool:

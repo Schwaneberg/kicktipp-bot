@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  kicktipp-bot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.x86
+    container_name: kicktipp-bot
+    restart: unless-stopped
+    
+    # Load environment variables from .env file
+    env_file:
+      - ../.env
+    
+    # Additional environment variables (override .env if needed)
+    environment:
+      TZ: Europe/Berlin
+      PYTHONUNBUFFERED: 1
+    
+    # Health check port
+    ports:
+      - "8080:8080"
+    
+    # Volume mounts for logs and config
+    volumes:
+      - ./logs:/app/logs
+      - ../.env:/app/.env:ro
+    
+    # Resource limits (adjust for your NAS)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -12,6 +12,13 @@ from time import sleep
 import sentry_sdk
 import os
 
+# Load .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, continue with existing environment
+
 from .config import Config
 from .webdriver.webdriver_manager import WebDriverManager
 from .core.authentication import Authenticator, AuthenticationError
@@ -128,14 +135,15 @@ def main() -> None:
     # Validate configuration
     if not Config.validate_required_config():
         logger.error("Missing required configuration. Please set KICKTIPP_EMAIL, "
-                     "KICKTIPP_PASSWORD and KICKTIPP_NAME_OF_COMPETITION environment variables")
+                     "KICKTIPP_PASSWORD, and either KICKTIPP_COMPETITIONS or KICKTIPP_NAME_OF_COMPETITION. "
+                     "If PREDICTOR=ai, also set OPENAI_API_KEY.")
         sys.exit(1)
 
     logger.info("Kicktipp Bot starting...")
     logger.info(f"Configuration: Competitions={Config.COMPETITIONS()}, "
-                f"Predictor={Config.PREDICTOR}, "
-                f"Run interval={Config.RUN_EVERY_X_MINUTES}min, "
-                f"Tip threshold={Config.TIME_UNTIL_GAME}")
+                f"Predictor={Config.PREDICTOR()}, "
+                f"Run interval={Config.RUN_EVERY_X_MINUTES()}min, "
+                f"Tip threshold={Config.TIME_UNTIL_GAME()}")
 
     if os.getenv("SENTRY_DSN"):
         sentry_sdk.init(
@@ -179,7 +187,7 @@ def main() -> None:
                 logger.error(f"Error during tipping cycle: {e}", exc_info=True)
 
             # Sleep until next cycle
-            sleep_minutes = Config.RUN_EVERY_X_MINUTES
+            sleep_minutes = Config.RUN_EVERY_X_MINUTES()
             if sleep_minutes == 0:
                 logger.info("Repetition time is 0, shutting down")
                 return

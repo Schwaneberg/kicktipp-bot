@@ -97,7 +97,7 @@ class HealthStatus:
         from .config import Config
 
         # Get the run interval and add a buffer
-        run_interval_minutes = Config.RUN_EVERY_X_MINUTES or 60
+        run_interval_minutes = Config.RUN_EVERY_X_MINUTES() or 60
 
         # Check if we have a recent heartbeat (should be updated every 10 seconds during sleep)
         if self.last_heartbeat:

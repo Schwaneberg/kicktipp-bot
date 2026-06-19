@@ -24,7 +24,7 @@ class Authenticator:
 
     def login(self) -> None:
         """Perform login to Kicktipp."""
-        if not Config.EMAIL or not Config.PASSWORD:
+        if not Config.EMAIL() or not Config.PASSWORD():
             raise AuthenticationError("Email and password must be configured")
 
         logger.info("Starting login process...")
@@ -73,10 +73,10 @@ class Authenticator:
             raise AuthenticationError("Could not find password input field")
 
         # Enter credentials
-        if not SeleniumUtils.safe_send_keys(email_field, Config.EMAIL, "email field"):
+        if not SeleniumUtils.safe_send_keys(email_field, Config.EMAIL(), "email field"):
             raise AuthenticationError("Failed to enter email")
 
-        if not SeleniumUtils.safe_send_keys(password_field, Config.PASSWORD, "password field"):
+        if not SeleniumUtils.safe_send_keys(password_field, Config.PASSWORD(), "password field"):
             raise AuthenticationError("Failed to enter password")
 
         logger.debug("Credentials entered successfully")

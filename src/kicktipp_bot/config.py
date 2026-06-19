@@ -12,59 +12,108 @@ class Config:
     BASE_URL = "https://www.kicktipp.de/"
     LOGIN_URL = "https://www.kicktipp.de/info/profil/login/"
 
-    # Required environment variables
-    EMAIL: Optional[str] = os.getenv("KICKTIPP_EMAIL")
-    PASSWORD: Optional[str] = os.getenv("KICKTIPP_PASSWORD")
-    NAME_OF_COMPETITION: Optional[str] = os.getenv(
-        "KICKTIPP_NAME_OF_COMPETITION")
+    # Cache for lazy-loaded env vars
+    _cache = {}
 
-    # Support multiple competitions via comma separated list. Fall back to single name.
-    COMPETITIONS_RAW: Optional[str] = os.getenv("KICKTIPP_COMPETITIONS")
     @classmethod
-    def COMPETITIONS(cls):
-        if cls.COMPETITIONS_RAW:
-            return [c.strip() for c in cls.COMPETITIONS_RAW.split(",") if c.strip()]
-        if cls.NAME_OF_COMPETITION:
-            return [cls.NAME_OF_COMPETITION]
+    def _get_env(cls, key: str, default: str = None) -> Optional[str]:
+        """Lazy-load environment variable with caching."""
+        if key not in cls._cache:
+            cls._cache[key] = os.getenv(key, default)
+        return cls._cache[key]
+
+    @property
+    def EMAIL(self) -> Optional[str]:
+        return self._get_env("KICKTIPP_EMAIL")
+
+    @property
+    def PASSWORD(self) -> Optional[str]:
+        return self._get_env("KICKTIPP_PASSWORD")
+
+    @property
+    def NAME_OF_COMPETITION(self) -> Optional[str]:
+        return self._get_env("KICKTIPP_NAME_OF_COMPETITION")
+
+    @property
+    def COMPETITIONS_RAW(self) -> Optional[str]:
+        return self._get_env("KICKTIPP_COMPETITIONS")
+
+    @classmethod
+    def COMPETITIONS(cls) -> list:
+        """Get list of competitions from KICKTIPP_COMPETITIONS or fall back to single NAME_OF_COMPETITION."""
+        competitions_raw = cls._get_env("KICKTIPP_COMPETITIONS")
+        if competitions_raw:
+            return [c.strip() for c in competitions_raw.split(",") if c.strip()]
+        name = cls._get_env("KICKTIPP_NAME_OF_COMPETITION")
+        if name:
+            return [name]
         return []
 
-    # Optional environment variables with defaults
-    RUN_EVERY_X_MINUTES: Optional[int] = int(
-        os.getenv("KICKTIPP_RUN_EVERY_X_MINUTES", "60"))
-    OVERWRITE_TIPS: Optional[bool] = os.getenv("OVERWRITE_TIPS", "false").lower() == "true"
+    @classmethod
+    def RUN_EVERY_X_MINUTES(cls) -> int:
+        return int(cls._get_env("KICKTIPP_RUN_EVERY_X_MINUTES", "60"))
 
-    # Predictor selection: 'ai' or 'quotes'
-    PREDICTOR: str = os.getenv("PREDICTOR", "ai")
+    @classmethod
+    def OVERWRITE_TIPS(cls) -> bool:
+        return cls._get_env("OVERWRITE_TIPS", "false").lower() == "true"
 
-    # OpenAI configuration (only required when PREDICTOR=ai)
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-5.5")
+    @classmethod
+    def PREDICTOR(cls) -> str:
+        return cls._get_env("PREDICTOR", "ai")
 
-    # Chrome driver path
-    CHROMEDRIVER_PATH: Optional[str] = os.getenv("CHROMEDRIVER_PATH")
+    @classmethod
+    def OPENAI_API_KEY(cls) -> Optional[str]:
+        return cls._get_env("OPENAI_API_KEY")
 
-    # Time configuration
-    HOURS_UNTIL_GAME: Optional[int] = int(
-        os.getenv("KICKTIPP_HOURS_UNTIL_GAME", "2"))
-    TIME_UNTIL_GAME: timedelta = timedelta(hours=HOURS_UNTIL_GAME)
+    @classmethod
+    def OPENAI_MODEL(cls) -> str:
+        return cls._get_env("OPENAI_MODEL", "gpt-5.5")
 
-    # Notification URLs
-    ZAPIER_URL: Optional[str] = os.getenv("ZAPIER_URL")
-    NTFY_URL: Optional[str] = os.getenv("NTFY_URL")
-    NTFY_USERNAME: Optional[str] = os.getenv("NTFY_USERNAME")
-    NTFY_PASSWORD: Optional[str] = os.getenv("NTFY_PASSWORD")
-    WEBHOOK_URL: Optional[str] = os.getenv("WEBHOOK_URL")
-    GROUP_NOTIFICATIONS: bool = os.getenv("GROUP_NOTIFICATIONS", "false").lower() == "true"
+    @classmethod
+    def CHROMEDRIVER_PATH(cls) -> Optional[str]:
+        return cls._get_env("CHROMEDRIVER_PATH")
+
+    @classmethod
+    def HOURS_UNTIL_GAME(cls) -> int:
+        return int(cls._get_env("KICKTIPP_HOURS_UNTIL_GAME", "2"))
+
+    @classmethod
+    def TIME_UNTIL_GAME(cls) -> timedelta:
+        return timedelta(hours=cls.HOURS_UNTIL_GAME())
+
+    @classmethod
+    def ZAPIER_URL(cls) -> Optional[str]:
+        return cls._get_env("ZAPIER_URL")
+
+    @classmethod
+    def NTFY_URL(cls) -> Optional[str]:
+        return cls._get_env("NTFY_URL")
+
+    @classmethod
+    def NTFY_USERNAME(cls) -> Optional[str]:
+        return cls._get_env("NTFY_USERNAME")
+
+    @classmethod
+    def NTFY_PASSWORD(cls) -> Optional[str]:
+        return cls._get_env("NTFY_PASSWORD")
+
+    @classmethod
+    def WEBHOOK_URL(cls) -> Optional[str]:
+        return cls._get_env("WEBHOOK_URL")
+
+    @classmethod
+    def GROUP_NOTIFICATIONS(cls) -> bool:
+        return cls._get_env("GROUP_NOTIFICATIONS", "false").lower() == "true"
 
     @classmethod
     def validate_required_config(cls) -> bool:
         """Validate that all required configuration is present."""
         # Base required vars
-        required_vars = [cls.EMAIL, cls.PASSWORD]
+        required_vars = [cls._get_env("KICKTIPP_EMAIL"), cls._get_env("KICKTIPP_PASSWORD")]
 
         # If using ai predictor, require OPENAI_API_KEY
-        if cls.PREDICTOR == 'ai':
-            required_vars.append(cls.OPENAI_API_KEY)
+        if cls.PREDICTOR() == 'ai':
+            required_vars.append(cls.OPENAI_API_KEY())
 
         # Require at least one competition name
         if not cls.COMPETITIONS():

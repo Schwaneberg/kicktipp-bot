@@ -20,14 +20,14 @@ class NotificationManager:
     """
 
     def __init__(self):
-        self.zapier_enabled = Config.ZAPIER_URL is not None
+        self.zapier_enabled = Config.ZAPIER_URL() is not None
         self.ntfy_enabled = all([
-            Config.NTFY_URL,
-            Config.NTFY_USERNAME,
-            Config.NTFY_PASSWORD
+            Config.NTFY_URL(),
+            Config.NTFY_USERNAME(),
+            Config.NTFY_PASSWORD()
         ])
-        self.webhook_enabled = Config.WEBHOOK_URL is not None
-        self.group_notifications = Config.GROUP_NOTIFICATIONS
+        self.webhook_enabled = Config.WEBHOOK_URL() is not None
+        self.group_notifications = Config.GROUP_NOTIFICATIONS()
         self.pending_events: List[NotificationEvent] = []
 
     def send_all_notifications(
@@ -85,7 +85,7 @@ class NotificationManager:
             }
 
             response = requests.post(
-                Config.ZAPIER_URL,
+                Config.ZAPIER_URL(),
                 data=payload,
                 timeout=10
             )
@@ -117,8 +117,8 @@ class NotificationManager:
             }
 
             response = requests.post(
-                Config.NTFY_URL,
-                auth=(Config.NTFY_USERNAME, Config.NTFY_PASSWORD),
+                Config.NTFY_URL(),
+                auth=(Config.NTFY_USERNAME(), Config.NTFY_PASSWORD()),
                 data=message.encode('utf-8'),
                 headers=headers,
                 timeout=10
@@ -157,7 +157,7 @@ class NotificationManager:
             }
 
             response = requests.post(
-                Config.WEBHOOK_URL,
+                Config.WEBHOOK_URL(),
                 json=data,
                 headers=headers,
                 timeout=10
@@ -223,7 +223,7 @@ class NotificationManager:
             }
 
             response = requests.post(
-                Config.ZAPIER_URL,
+                Config.ZAPIER_URL(),
                 json=payload,
                 timeout=10
             )
@@ -251,8 +251,8 @@ class NotificationManager:
             }
 
             response = requests.post(
-                Config.NTFY_URL,
-                auth=(Config.NTFY_USERNAME, Config.NTFY_PASSWORD),
+                Config.NTFY_URL(),
+                auth=(Config.NTFY_USERNAME(), Config.NTFY_PASSWORD()),
                 data=message.encode('utf-8'),
                 headers=headers,
                 timeout=10
@@ -277,7 +277,7 @@ class NotificationManager:
             }
 
             response = requests.post(
-                Config.WEBHOOK_URL,
+                Config.WEBHOOK_URL(),
                 json=data,
                 headers=headers,
                 timeout=10

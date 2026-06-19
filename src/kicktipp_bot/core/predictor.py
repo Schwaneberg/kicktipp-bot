@@ -35,17 +35,17 @@ class AIPredictor(BasePredictor):
             import openai
             self.openai = openai
             # Set API key on the module (openai accepts this)
-            if Config.OPENAI_API_KEY:
+            if Config.OPENAI_API_KEY():
                 try:
                     # Newer openai libs prefer openai.api_key
-                    self.openai.api_key = Config.OPENAI_API_KEY
+                    self.openai.api_key = Config.OPENAI_API_KEY()
                 except Exception:
                     pass
         except Exception as e:
             logger.error("openai package not available: %s", e)
             raise
 
-        self.model = Config.OPENAI_MODEL
+        self.model = Config.OPENAI_MODEL()
 
     def _call_api(self, home: str, away: str, kickoff_iso: str, competition: str):
         # Try to use Responses API if available, else fallback to ChatCompletion with JSON parse
@@ -165,6 +165,6 @@ class AIPredictor(BasePredictor):
 
 
 def get_predictor():
-    if Config.PREDICTOR == 'quotes':
+    if Config.PREDICTOR() == 'quotes':
         return QuotesPredictor()
     return AIPredictor()

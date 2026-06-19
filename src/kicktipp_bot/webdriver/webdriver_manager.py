@@ -19,9 +19,9 @@ class WebDriverManager:
     def create_driver() -> WebDriver:
         """Create and configure a WebDriver instance based on arguments and configuration."""
         # Check for custom chrome driver path
-        if Config.CHROMEDRIVER_PATH is not None:
+        if Config.CHROMEDRIVER_PATH() is not None:
             logger.info('Using custom Chrome Driver path')
-            return webdriver.Chrome(Config.CHROMEDRIVER_PATH)
+            return webdriver.Chrome(Config.CHROMEDRIVER_PATH())
 
         # Check for headless mode
         if WebDriverManager._is_headless_mode():
