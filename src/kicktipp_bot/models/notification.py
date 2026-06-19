@@ -19,6 +19,8 @@ class NotificationEvent:
     tip: Tuple[int, int]
     game_time: datetime
     competition: str = ""
+    prediction_method: str = ""
+    prediction_error: str = ""
     
     def to_dict(self) -> dict:
         """Convert the event to a dictionary suitable for webhook payloads.
@@ -44,7 +46,9 @@ class NotificationEvent:
             "quotedraw": self.quotes[1] if len(self.quotes) > 1 else '',
             "quoteteam2": self.quotes[2] if len(self.quotes) > 2 else '',
             "tipteam1": self.tip[0],
-            "tipteam2": self.tip[1]
+            "tipteam2": self.tip[1],
+            "prediction_method": self.prediction_method,
+            "prediction_error": self.prediction_error
         }
     
     def __str__(self) -> str:

@@ -37,27 +37,61 @@ class NotificationManager:
         away_team: str,
         quotes: List[str],
         tip: Tuple[int, int],
-        competition: str = ""
+        competition: str = "",
+        prediction_method: str = "",
+        prediction_error: str = ""
     ) -> None:
         """Send all configured notifications."""
         try:
             if self.group_notifications:
                 # Collect event for grouped notification
-                self._collect_event(game_time, home_team, away_team, quotes, tip, competition)
+                self._collect_event(
+                    game_time,
+                    home_team,
+                    away_team,
+                    quotes,
+                    tip,
+                    competition,
+                    prediction_method,
+                    prediction_error
+                )
             else:
                 # Send notifications immediately (original behavior)
                 if self.zapier_enabled:
                     self._send_zapier_webhook(
-                        game_time, home_team, away_team, quotes, tip, competition)
+                        game_time,
+                        home_team,
+                        away_team,
+                        quotes,
+                        tip,
+                        competition,
+                        prediction_method,
+                        prediction_error
+                    )
 
                 if self.ntfy_enabled:
                     self._send_ntfy_notification(
-                        game_time, home_team, away_team, quotes, tip, competition)
+                        game_time,
+                        home_team,
+                        away_team,
+                        quotes,
+                        tip,
+                        competition,
+                        prediction_method,
+                        prediction_error
+                    )
 
                 if self.webhook_enabled:
                     self._send_webhook_notification(
-                        game_time, home_team, away_team, quotes, tip, competition)
-
+                        game_time,
+                        home_team,
+                        away_team,
+                        quotes,
+                        tip,
+                        competition,
+                        prediction_method,
+                        prediction_error
+                    )
         except Exception as e:
             logger.error(f"Error sending notifications: {e}")
 
@@ -68,7 +102,9 @@ class NotificationManager:
         away_team: str,
         quotes: List[str],
         tip: Tuple[int, int],
-        competition: str = ""
+        competition: str = "",
+        prediction_method: str = "",
+        prediction_error: str = ""
     ) -> None:
         """Send notification to Zapier webhook."""
         try:
@@ -81,7 +117,9 @@ class NotificationManager:
                 'quotedraw': quotes[1] if len(quotes) > 1 else '',
                 'quoteteam2': quotes[2] if len(quotes) > 2 else '',
                 'tipteam1': tip[0],
-                'tipteam2': tip[1]
+                'tipteam2': tip[1],
+                'prediction_method': prediction_method,
+                'prediction_error': prediction_error
             }
 
             response = requests.post(
@@ -104,12 +142,20 @@ class NotificationManager:
         away_team: str,
         quotes: List[str],
         tip: Tuple[int, int],
-        competition: str = ""
+        competition: str = "",
+        prediction_method: str = "",
+        prediction_error: str = ""
     ) -> None:
         """Send notification via ntfy service."""
         try:
             title = f"{home_team} - {away_team} tipped {tip[0]}:{tip[1]} ({competition})"
-            message = f"Time: {game_time.strftime('%d.%m.%y %H:%M')}\nCompetition: {competition}\nQuotes: {quotes}"
+            message = (
+                f"Time: {game_time.strftime('%d.%m.%y %H:%M')}\n"
+                f"Competition: {competition}\n"
+                f"Quotes: {quotes}\n"
+                f"Prediction method: {prediction_method}\n"
+                f"Prediction error: {prediction_error}"
+            )
 
             headers = {
                 "X-Title": title.encode('utf-8'),
@@ -138,7 +184,9 @@ class NotificationManager:
         away_team: str,
         quotes: List[str],
         tip: Tuple[int, int],
-        competition: str = ""
+        competition: str = "",
+        prediction_method: str = "",
+        prediction_error: str = ""
     ) -> None:
         """Send notification to generic webhook."""
         try:
@@ -149,7 +197,9 @@ class NotificationManager:
                 "quotes": quotes,
                 "tip": list(tip),
                 "time": game_time.strftime('%d.%m.%y %H:%M'),
-                "timestamp": game_time.isoformat()
+                "timestamp": game_time.isoformat(),
+                "prediction_method": prediction_method,
+                "prediction_error": prediction_error
             }
 
             headers = {
@@ -177,7 +227,9 @@ class NotificationManager:
         away_team: str,
         quotes: List[str],
         tip: Tuple[int, int],
-        competition: str = ""
+        competition: str = "",
+        prediction_method: str = "",
+        prediction_error: str = ""
     ) -> None:
         """Collect an event for grouped notification."""
         event = NotificationEvent(
@@ -186,7 +238,9 @@ class NotificationManager:
             quotes=quotes,
             tip=tip,
             game_time=game_time,
-            competition=competition
+            competition=competition,
+            prediction_method=prediction_method,
+            prediction_error=prediction_error
         )
         self.pending_events.append(event)
         logger.debug(f"Collected event for grouped notification: {event}")

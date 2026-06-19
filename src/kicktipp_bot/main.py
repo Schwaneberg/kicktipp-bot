@@ -40,6 +40,16 @@ def setup_logging(debug_mode: bool = False) -> None:
         force=True  # Override any existing configuration
     )
 
+    # File logging for Docker-mounted logs directory
+    log_file = os.getenv('KICKTIPP_LOG_FILE', '/app/logs/bot.log')
+    try:
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(logging.Formatter(log_format))
+        logging.getLogger().addHandler(file_handler)
+    except Exception as e:
+        logging.getLogger().warning(f"Could not create log file {log_file}: {e}")
+
     # Set logging level for all kicktipp_bot modules
     logging.getLogger('kicktipp_bot').setLevel(log_level)
 

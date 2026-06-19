@@ -21,7 +21,7 @@ from selenium.common.exceptions import NoSuchElementException, WebDriverExceptio
 from ..config import Config
 from ..models.game import Game
 from .notifications import NotificationManager
-from .predictor import get_predictor
+from .predictor import QuotesPredictor, get_predictor
 from ..utils.selenium_utils import SeleniumUtils
 from .table_processors import TimeExtractor, TableRowProcessor, GameDataExtractor
 
@@ -48,6 +48,13 @@ class GameTipper:
         # Per-run state
         self.predictions_cache = {}
         self.current_competition = ''
+
+    def _is_valid_tip(self, tip) -> bool:
+        return (
+            isinstance(tip, (tuple, list))
+            and len(tip) == 2
+            and all(isinstance(x, int) and x >= 0 for x in tip)
+        )
 
     def tip_all_games(self) -> None:
         """Process and tip all available games for configured competitions.
@@ -275,26 +282,106 @@ class GameTipper:
 
             # Build a stable match id
             match_id = f"{home_team}|{away_team}|{game_time.isoformat()}"
+            tip_prediction_method = None
 
             # Use per-run predictions cache when available
             if match_id in self.predictions_cache:
                 tip = self.predictions_cache[match_id]
+                tip_prediction_method = 'cached'
             else:
+                predictor = get_predictor()
+                tip = None
+                prediction_method = Config.PREDICTOR()
                 try:
-                    predictor = get_predictor()
                     tip = predictor.predict(game, self.current_competition or '')
-                    # store prediction in cache for this run
+                    if not self._is_valid_tip(tip):
+                        raise ValueError(f"Predictor returned invalid tip: {tip}")
                     self.predictions_cache[match_id] = tip
+                    tip_prediction_method = prediction_method
                 except Exception as e:
-                    logger.error("Failed to predict tip for %s vs %s: %s", home_team, away_team, e)
-                    # Notify and skip this match (do not submit garbage)
-                    try:
-                        self.notification_manager.send_all_notifications(game_time, home_team, away_team, quotes, (None, None), self.current_competition or '')
-                    except Exception:
-                        pass
-                    return False
+                    logger.warning(
+                        "Predictor %s failed for %s vs %s: %s",
+                        predictor.__class__.__name__,
+                        home_team,
+                        away_team,
+                        e
+                    )
+                    if Config.PREDICTOR() == 'ai':
+                        try:
+                            fallback_predictor = QuotesPredictor()
+                            tip = fallback_predictor.predict(game, self.current_competition or '')
+                            if not self._is_valid_tip(tip):
+                                raise ValueError(f"Fallback predictor returned invalid tip: {tip}")
+                            tip_prediction_method = 'quotes-fallback'
+                            self.predictions_cache[match_id] = tip
+                            logger.info(
+                                "AI predictor failed; falling back to quote-based predictor for %s vs %s: %s - %s",
+                                home_team,
+                                away_team,
+                                tip[0],
+                                tip[1]
+                            )
+                        except Exception as fallback_exc:
+                            logger.error(
+                                "AI predictor failed and quote fallback also failed for %s vs %s: %s",
+                                home_team,
+                                away_team,
+                                fallback_exc
+                            )
+                            try:
+                                self.notification_manager.send_all_notifications(
+                                    game_time,
+                                    home_team,
+                                    away_team,
+                                    quotes,
+                                    (None, None),
+                                    self.current_competition or '',
+                                    prediction_method='ai+quotes-fallback',
+                                    prediction_error=str(fallback_exc)
+                                )
+                            except Exception:
+                                pass
+                            return False
+                    else:
+                        logger.error(
+                            "Predictor failed for %s vs %s and no fallback configured: %s",
+                            home_team,
+                            away_team,
+                            e
+                        )
+                        try:
+                            self.notification_manager.send_all_notifications(
+                                game_time,
+                                home_team,
+                                away_team,
+                                quotes,
+                                (None, None),
+                                self.current_competition or '',
+                                prediction_method=Config.PREDICTOR(),
+                                prediction_error=str(e)
+                            )
+                        except Exception:
+                            pass
+                        return False
 
-            logger.info(f"Calculated tip: {tip[0]} - {tip[1]}")
+            if not self._is_valid_tip(tip):
+                logger.error("Invalid tip generated for %s vs %s: %s", home_team, away_team, tip)
+                try:
+                    self.notification_manager.send_all_notifications(
+                        game_time,
+                        home_team,
+                        away_team,
+                        quotes,
+                        (None, None),
+                        self.current_competition or '',
+                        prediction_method=tip_prediction_method or Config.PREDICTOR(),
+                        prediction_error=f"Invalid tip generated: {tip}"
+                    )
+                except Exception:
+                    pass
+                return False
+
+            logger.info("Calculated tip using %s predictor: %s - %s", tip_prediction_method, tip[0], tip[1])
 
             # Enter tip and send notifications
             if self._enter_tip(home_tip_field, away_tip_field, tip):
@@ -302,7 +389,14 @@ class GameTipper:
                     # Pass competition information
                     competition = self.current_competition or Config.NAME_OF_COMPETITION() or ''
                     self.notification_manager.send_all_notifications(
-                        game_time, home_team, away_team, quotes, tip, competition
+                        game_time,
+                        home_team,
+                        away_team,
+                        quotes,
+                        tip,
+                        competition,
+                        prediction_method=tip_prediction_method,
+                        prediction_error=''
                     )
                 except Exception as e:
                     logger.warning(
