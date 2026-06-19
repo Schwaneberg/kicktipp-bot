@@ -48,6 +48,13 @@ All notable changes to this project will be documented in this file.
 - **(time)** Fallback time should also be berlin tz
 - **(ci)** Only push and deploy when repo is not forked
 - **(health)** Fixed healthcheck condition
+
+## [unreleased] - 2026-06-19
+
+### 🚀 Features
+
+- **(predictor)** Add OpenAI-based predictor (`PREDICTOR=ai`) and `OPENAI_MODEL`/`OPENAI_API_KEY` support
+- **(multi-comp)** Add `KICKTIPP_COMPETITIONS` support and per-run in-memory prediction caching so identical matches are predicted once and the same score is submitted to multiple competitions
 - **(k8s)** Increase failure thresholds for probes
 
 ### ⚙️ Miscellaneous Tasks

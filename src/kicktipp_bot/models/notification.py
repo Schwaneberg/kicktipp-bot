@@ -18,6 +18,7 @@ class NotificationEvent:
     quotes: List[str]
     tip: Tuple[int, int]
     game_time: datetime
+    competition: str = ""
     
     def to_dict(self) -> dict:
         """Convert the event to a dictionary suitable for webhook payloads.
@@ -33,6 +34,7 @@ class NotificationEvent:
             "tip": list(self.tip),
             "time": self.game_time.strftime('%d.%m.%y %H:%M'),
             "timestamp": self.game_time.isoformat(),
+            "competition": self.competition,
             
             # Zapier-compatible fields
             "date": self.game_time.isoformat(),
@@ -47,4 +49,5 @@ class NotificationEvent:
     
     def __str__(self) -> str:
         """String representation of the notification event."""
-        return f"{self.home_team} - {self.away_team}: {self.tip[0]}:{self.tip[1]} ({self.game_time.strftime('%d.%m.%y %H:%M')})"
+        comp = f" [{self.competition}]" if self.competition else ""
+        return f"{self.home_team} - {self.away_team}: {self.tip[0]}:{self.tip[1]}{comp} ({self.game_time.strftime('%d.%m.%y %H:%M')})"

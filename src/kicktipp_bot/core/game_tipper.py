@@ -1,4 +1,10 @@
-"""Game tipping module for handling the core betting logic."""
+"""Game tipping module for handling the core betting logic.
+
+This module was extended to support multiple competitions per run and a
+pluggable predictor interface. Predictions are cached in-memory for the
+duration of a single tip cycle so that AI calls happen at most once per
+unique match per run.
+"""
 
 import logging
 import re
@@ -15,6 +21,7 @@ from selenium.common.exceptions import NoSuchElementException, WebDriverExceptio
 from ..config import Config
 from ..models.game import Game
 from .notifications import NotificationManager
+from .predictor import get_predictor
 from ..utils.selenium_utils import SeleniumUtils
 from .table_processors import TimeExtractor, TableRowProcessor, GameDataExtractor
 
@@ -38,48 +45,68 @@ class GameTipper:
         self.processed_count = 0
         self.game_number = 0
 
+        # Per-run state
+        self.predictions_cache = {}
+        self.current_competition = ''
+
     def tip_all_games(self) -> None:
-        """Process and tip all available games."""
+        """Process and tip all available games for configured competitions.
+
+        Iterates over `Config.COMPETITIONS()` and maintains a per-run in-memory
+        cache of predictions so the AI is queried at most once per unique
+        match per run.
+        """
         logger.info("Starting game tipping process")
 
+        competitions = Config.COMPETITIONS()
+        if not competitions:
+            logger.warning("No competitions configured to tip")
+            return
+
+        predictor = get_predictor()
+
         try:
-            # Navigate to tipping page
-            logger.debug("Navigating to tipping page")
-            self.driver.get(Config.get_tipp_url())
+            for competition in competitions:
+                logger.info(f"Processing competition: {competition}")
 
-            # Wait for page to load
-            if not SeleniumUtils.wait_for_page_load(self.driver):
-                raise GameTippingError("Tipping page failed to load")
+                self.current_competition = competition
 
-            # Additional wait for dynamic content
-            sleep(1)
+                # Navigate to tipping page for this competition
+                logger.debug("Navigating to tipping page for %s", competition)
+                self.driver.get(Config.get_tipp_url_for_competition(competition))
 
-            # Accept terms and conditions if they appear on the tipping page
-            self._accept_terms_and_conditions()
+                # Wait for page to load
+                if not SeleniumUtils.wait_for_page_load(self.driver):
+                    raise GameTippingError("Tipping page failed to load")
 
-            # Get the number of games available
-            games_count = self._get_games_count()
-            if games_count == 0:
-                logger.warning("No games found to process - this could mean:")
-                logger.warning("  - No games are available for tipping")
-                logger.warning("  - Page structure has changed")
-                logger.warning("  - Terms dialog is still blocking content")
-                return
+                # Additional wait for dynamic content
+                sleep(1)
 
-            logger.info(f"Found {games_count} games to process")
+                # Accept terms and conditions if they appear on the tipping page
+                self._accept_terms_and_conditions()
 
-            # Process games using sequential row processing approach
-            self._reset_state()
-            self._process_all_table_rows()
+                # Get the number of games available
+                games_count = self._get_games_count()
+                if games_count == 0:
+                    logger.warning("No games found to process for %s", competition)
+                    continue
 
-            # Submit all tips (button should always be clickable)
-            self._submit_all_tips()
+                logger.info(f"Found {games_count} games to process for {competition}")
 
-            # Debug mode sleep
-            if self._is_debug_mode() and Config.RUN_EVERY_X_MINUTES != 0:
-                logger.info(
-                    "Local debug mode - sleeping for 20 seconds to review results")
-                sleep(20)
+                # Reset state for this competition
+                self._reset_state()
+
+                # Process table rows; predictor and cache are on self
+                self._process_all_table_rows()
+
+                # Submit all tips for this competition
+                self._submit_all_tips()
+
+                # Debug mode sleep
+                if self._is_debug_mode() and Config.RUN_EVERY_X_MINUTES != 0:
+                    logger.info(
+                        "Local debug mode - sleeping for 5 seconds to review results")
+                    sleep(5)
 
         except GameTippingError:
             raise
@@ -89,7 +116,6 @@ class GameTipper:
             raise GameTippingError(f"Unexpected error during tipping: {e}")
         finally:
             # Always send grouped notifications at the end, even if errors occurred
-            # This ensures collected events are sent and pending_events is cleared
             self.notification_manager.send_grouped_notifications()
 
     def _reset_state(self) -> None:
@@ -240,25 +266,43 @@ class GameTipper:
             if not self._should_tip_game(game_time):
                 return False
 
-            # Extract quotes using the new extractor
-            quotes = GameDataExtractor.extract_quotes(data_row)
-            if not quotes:
-                logger.warning(
-                    f"Could not extract quotes for game {game_number}")
-                return False
-
+            # Extract quotes using the new extractor (may be empty for AI predictor)
+            quotes = GameDataExtractor.extract_quotes(data_row) or []
             logger.debug(f"Quotes: {quotes}")
 
-            # Create game and calculate tip
+            # Create game object
             game = Game(home_team, away_team, quotes, game_time)
-            tip = game.calculate_tip()
+
+            # Build a stable match id
+            match_id = f"{home_team}|{away_team}|{game_time.isoformat()}"
+
+            # Use per-run predictions cache when available
+            if match_id in self.predictions_cache:
+                tip = self.predictions_cache[match_id]
+            else:
+                try:
+                    predictor = get_predictor()
+                    tip = predictor.predict(game, self.current_competition or '')
+                    # store prediction in cache for this run
+                    self.predictions_cache[match_id] = tip
+                except Exception as e:
+                    logger.error("Failed to predict tip for %s vs %s: %s", home_team, away_team, e)
+                    # Notify and skip this match (do not submit garbage)
+                    try:
+                        self.notification_manager.send_all_notifications(game_time, home_team, away_team, quotes, (None, None), self.current_competition or '')
+                    except Exception:
+                        pass
+                    return False
+
             logger.info(f"Calculated tip: {tip[0]} - {tip[1]}")
 
             # Enter tip and send notifications
             if self._enter_tip(home_tip_field, away_tip_field, tip):
                 try:
+                    # Pass competition information
+                    competition = self.current_competition or Config.NAME_OF_COMPETITION or ''
                     self.notification_manager.send_all_notifications(
-                        game_time, home_team, away_team, quotes, tip
+                        game_time, home_team, away_team, quotes, tip, competition
                     )
                 except Exception as e:
                     logger.warning(
@@ -398,10 +442,3 @@ class GameTipper:
 
             except Exception as e:
                 logger.warning(f"Error handling terms dialog: {e}")
-                # Ensure we switch back to main content
-                try:
-                    self.driver.switch_to.default_content()
-                except Exception:
-                    pass
-        else:
-            logger.debug("No terms dialog found - may already be accepted")

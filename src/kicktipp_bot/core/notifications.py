@@ -36,26 +36,27 @@ class NotificationManager:
         home_team: str,
         away_team: str,
         quotes: List[str],
-        tip: Tuple[int, int]
+        tip: Tuple[int, int],
+        competition: str = ""
     ) -> None:
         """Send all configured notifications."""
         try:
             if self.group_notifications:
                 # Collect event for grouped notification
-                self._collect_event(game_time, home_team, away_team, quotes, tip)
+                self._collect_event(game_time, home_team, away_team, quotes, tip, competition)
             else:
                 # Send notifications immediately (original behavior)
                 if self.zapier_enabled:
                     self._send_zapier_webhook(
-                        game_time, home_team, away_team, quotes, tip)
+                        game_time, home_team, away_team, quotes, tip, competition)
 
                 if self.ntfy_enabled:
                     self._send_ntfy_notification(
-                        game_time, home_team, away_team, quotes, tip)
+                        game_time, home_team, away_team, quotes, tip, competition)
 
                 if self.webhook_enabled:
                     self._send_webhook_notification(
-                        game_time, home_team, away_team, quotes, tip)
+                        game_time, home_team, away_team, quotes, tip, competition)
 
         except Exception as e:
             logger.error(f"Error sending notifications: {e}")
@@ -66,7 +67,8 @@ class NotificationManager:
         home_team: str,
         away_team: str,
         quotes: List[str],
-        tip: Tuple[int, int]
+        tip: Tuple[int, int],
+        competition: str = ""
     ) -> None:
         """Send notification to Zapier webhook."""
         try:
@@ -74,6 +76,7 @@ class NotificationManager:
                 'date': game_time.isoformat(),
                 'team1': home_team,
                 'team2': away_team,
+                'competition': competition,
                 'quoteteam1': quotes[0] if len(quotes) > 0 else '',
                 'quotedraw': quotes[1] if len(quotes) > 1 else '',
                 'quoteteam2': quotes[2] if len(quotes) > 2 else '',
@@ -100,12 +103,13 @@ class NotificationManager:
         home_team: str,
         away_team: str,
         quotes: List[str],
-        tip: Tuple[int, int]
+        tip: Tuple[int, int],
+        competition: str = ""
     ) -> None:
         """Send notification via ntfy service."""
         try:
-            title = f"{home_team} - {away_team} tipped {tip[0]}:{tip[1]}"
-            message = f"Time: {game_time.strftime('%d.%m.%y %H:%M')}\nQuotes: {quotes}"
+            title = f"{home_team} - {away_team} tipped {tip[0]}:{tip[1]} ({competition})"
+            message = f"Time: {game_time.strftime('%d.%m.%y %H:%M')}\nCompetition: {competition}\nQuotes: {quotes}"
 
             headers = {
                 "X-Title": title.encode('utf-8'),
@@ -133,13 +137,15 @@ class NotificationManager:
         home_team: str,
         away_team: str,
         quotes: List[str],
-        tip: Tuple[int, int]
+        tip: Tuple[int, int],
+        competition: str = ""
     ) -> None:
         """Send notification to generic webhook."""
         try:
             data = {
                 "home_team": home_team,
                 "away_team": away_team,
+                "competition": competition,
                 "quotes": quotes,
                 "tip": list(tip),
                 "time": game_time.strftime('%d.%m.%y %H:%M'),
@@ -170,7 +176,8 @@ class NotificationManager:
         home_team: str,
         away_team: str,
         quotes: List[str],
-        tip: Tuple[int, int]
+        tip: Tuple[int, int],
+        competition: str = ""
     ) -> None:
         """Collect an event for grouped notification."""
         event = NotificationEvent(
@@ -178,7 +185,8 @@ class NotificationManager:
             away_team=away_team,
             quotes=quotes,
             tip=tip,
-            game_time=game_time
+            game_time=game_time,
+            competition=competition
         )
         self.pending_events.append(event)
         logger.debug(f"Collected event for grouped notification: {event}")

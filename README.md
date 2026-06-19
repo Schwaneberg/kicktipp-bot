@@ -64,6 +64,20 @@ or deploy with Kubernetes.
 | `SENTRY_ENVIRONMENT`           | The Sentry environment for error reporting.                          | `production`                                                      | No       |
 | `TZ`                           | The timezone for the container.                                      | `Europe/Berlin`                                                   | No       |
 
+| `PREDICTOR`                    | Which predictor to use: `ai` or `quotes` (default: `ai`).            | `ai`                                                              | No       |
+| `OPENAI_API_KEY`               | OpenAI API key used when `PREDICTOR=ai`.                             | `sk-REPLACE_ME`                                                   | No*      |
+| `OPENAI_MODEL`                 | Which OpenAI model to use (default `gpt-5.5`).                        | `gpt-5.5`                                                          | No       |
+| `KICKTIPP_COMPETITIONS`        | Optional comma-separated list of competition slugs.                   | `liga-eins,liga-zwei`                                              | No       |
+
+*`OPENAI_API_KEY` is required if `PREDICTOR` is set to `ai`.
+
+## AI Predictor and Multi-Competition behavior
+
+- When `PREDICTOR=ai`, the bot queries the OpenAI API to predict match scores.
+- Set `KICKTIPP_COMPETITIONS` to a comma-separated list to tip multiple competitions in one run. The bot will submit the identical predicted score to every competition that contains the match.
+- Predictions are cached in-memory for the duration of the run, so each unique match triggers at most one OpenAI call per cycle.
+
+
 ## Sentry
 
 If you want to use Sentry for error reporting, you can set the ENV Variable `SENTRY_DSN` to the DSN of your Sentry project. You can also set the ENV Variable `SENTRY_ENVIRONMENT` to the environment of your project.

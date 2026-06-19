@@ -132,7 +132,8 @@ def main() -> None:
         sys.exit(1)
 
     logger.info("Kicktipp Bot starting...")
-    logger.info(f"Configuration: Competition={Config.NAME_OF_COMPETITION}, "
+    logger.info(f"Configuration: Competitions={Config.COMPETITIONS()}, "
+                f"Predictor={Config.PREDICTOR}, "
                 f"Run interval={Config.RUN_EVERY_X_MINUTES}min, "
                 f"Tip threshold={Config.TIME_UNTIL_GAME}")
 
