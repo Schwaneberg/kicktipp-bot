@@ -9,6 +9,7 @@ import logging
 import sys
 from datetime import datetime
 from time import sleep
+import traceback
 import sentry_sdk
 import os
 
@@ -88,16 +89,19 @@ class KicktippBot:
             logger.info("Tipping process completed successfully")
 
         except AuthenticationError as e:
-            health_status.record_failed_run(f"Authentication failed: {e}")
-            logger.error(f"Authentication failed: {e}")
+            tb = traceback.format_exc()
+            health_status.record_failed_run(f"Authentication failed: {e}\n{tb}")
+            logger.error(f"Authentication failed: {e}\n{tb}")
             raise
         except GameTippingError as e:
-            health_status.record_failed_run(f"Game tipping failed: {e}")
-            logger.error(f"Game tipping failed: {e}")
+            tb = traceback.format_exc()
+            health_status.record_failed_run(f"Game tipping failed: {e}\n{tb}")
+            logger.error(f"Game tipping failed: {e}\n{tb}")
             raise
         except Exception as e:
-            health_status.record_failed_run(f"Unexpected error: {e}")
-            logger.error(f"Unexpected error during tipping process: {e}")
+            tb = traceback.format_exc()
+            health_status.record_failed_run(f"Unexpected error: {e}\n{tb}")
+            logger.error(f"Unexpected error during tipping process: {e}\n{tb}")
             raise
         finally:
             self._cleanup()

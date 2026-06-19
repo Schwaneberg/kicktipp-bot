@@ -102,6 +102,22 @@ class Authenticator:
             if current_url == Config.BASE_URL:
                 logger.info("Login verification successful")
             else:
+                # On failure, capture page source and screenshot for debugging
+                try:
+                    from datetime import datetime
+                    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    dump_path_html = f"/app/logs/login_failure_{ts}.html"
+                    dump_path_png = f"/app/logs/login_failure_{ts}.png"
+                    with open(dump_path_html, 'w', encoding='utf-8') as fh:
+                        fh.write(self.driver.page_source)
+                    try:
+                        self.driver.save_screenshot(dump_path_png)
+                    except Exception:
+                        logger.debug("Could not save screenshot", exc_info=True)
+                    logger.info("Wrote login failure artifacts to %s and %s", dump_path_html, dump_path_png)
+                except Exception:
+                    logger.debug("Failed to write debug artifacts", exc_info=True)
+
                 raise AuthenticationError(
                     f"Login failed - redirected to: {current_url}")
         except WebDriverException as e:

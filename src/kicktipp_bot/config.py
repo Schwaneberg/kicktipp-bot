@@ -22,21 +22,21 @@ class Config:
             cls._cache[key] = os.getenv(key, default)
         return cls._cache[key]
 
-    @property
-    def EMAIL(self) -> Optional[str]:
-        return self._get_env("KICKTIPP_EMAIL")
+    @classmethod
+    def EMAIL(cls) -> Optional[str]:
+        return cls._get_env("KICKTIPP_EMAIL")
 
-    @property
-    def PASSWORD(self) -> Optional[str]:
-        return self._get_env("KICKTIPP_PASSWORD")
+    @classmethod
+    def PASSWORD(cls) -> Optional[str]:
+        return cls._get_env("KICKTIPP_PASSWORD")
 
-    @property
-    def NAME_OF_COMPETITION(self) -> Optional[str]:
-        return self._get_env("KICKTIPP_NAME_OF_COMPETITION")
+    @classmethod
+    def NAME_OF_COMPETITION(cls) -> Optional[str]:
+        return cls._get_env("KICKTIPP_NAME_OF_COMPETITION")
 
-    @property
-    def COMPETITIONS_RAW(self) -> Optional[str]:
-        return self._get_env("KICKTIPP_COMPETITIONS")
+    @classmethod
+    def COMPETITIONS_RAW(cls) -> Optional[str]:
+        return cls._get_env("KICKTIPP_COMPETITIONS")
 
     @classmethod
     def COMPETITIONS(cls) -> list:
@@ -72,6 +72,10 @@ class Config:
     @classmethod
     def CHROMEDRIVER_PATH(cls) -> Optional[str]:
         return cls._get_env("CHROMEDRIVER_PATH")
+
+    @classmethod
+    def CHROME_BINARY_PATH(cls) -> Optional[str]:
+        return cls._get_env("CHROME_BINARY_PATH")
 
     @classmethod
     def HOURS_UNTIL_GAME(cls) -> int:
@@ -124,7 +128,7 @@ class Config:
     @classmethod
     def get_tipp_url(cls) -> str:
         """Get the URL for the tipping page for the default competition."""
-        return f"https://www.kicktipp.de/{cls.NAME_OF_COMPETITION}/tippabgabe"
+        return f"https://www.kicktipp.de/{cls.NAME_OF_COMPETITION()}/tippabgabe"
 
     @classmethod
     def get_tipp_url_for_competition(cls, competition: str) -> str:
