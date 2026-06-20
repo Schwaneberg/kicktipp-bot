@@ -49,7 +49,7 @@ or deploy with Kubernetes.
 | ------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------- | -------- |
 | `KICKTIPP_EMAIL`               | Your Kicktipp email                                                  | `email@example.com`                                               | Yes      |
 | `KICKTIPP_PASSWORD`            | Your Kicktipp password                                               | `password`                                                        | Yes      |
-| `KICKTIPP_NAME_OF_COMPETITION` | The name of the competition you want to tip for                      | `mycoolfriendgroup`                                               | Yes      |
+| `KICKTIPP_COMPETITIONS`        | Optional comma-separated list of competition slugs.                   | `liga-eins,liga-zwei`                                              | Yes      |
 | `KICKTIPP_HOURS_UNTIL_GAME`    | The script will tip games which start in the next x hours            | `24`                                                              | No       |
 | `KICKTIPP_RUN_EVERY_X_MINUTES` | The script will run every x minutes                                  | `60`                                                              | No       |
 | `OVERWRITE_TIPS`               | If set to `true`, tips for already tipped games will be overwritten. | `false`                                                           | No       |
@@ -67,7 +67,7 @@ or deploy with Kubernetes.
 | `PREDICTOR`                    | Which predictor to use: `ai` or `quotes` (default: `ai`).            | `ai`                                                              | No       |
 | `OPENAI_API_KEY`               | OpenAI API key used when `PREDICTOR=ai`.                             | `sk-REPLACE_ME`                                                   | No*      |
 | `OPENAI_MODEL`                 | Which OpenAI model to use (default `gpt-5.5`).                        | `gpt-5.5`                                                          | No       |
-| `KICKTIPP_COMPETITIONS`        | Optional comma-separated list of competition slugs.                   | `liga-eins,liga-zwei`                                              | No       |
+| `KICKTIPP_COMPETITIONS`        | Optional comma-separated list of competition slugs.                   | `liga-eins,liga-zwei`                                              | Yes      |
 
 *`OPENAI_API_KEY` is required if `PREDICTOR` is set to `ai`.
 
@@ -75,6 +75,7 @@ or deploy with Kubernetes.
 
 - When `PREDICTOR=ai`, the bot queries the OpenAI API to predict match scores.
 - Set `KICKTIPP_COMPETITIONS` to a comma-separated list to tip multiple competitions in one run. The bot will submit the identical predicted score to every competition that contains the match.
+- If any game was already bet on in one competition, that exact bet is copied to the same game in all other configured competitions immediately, even if `KICKTIPP_HOURS_UNTIL_GAME` is not reached.
 - Predictions are cached in-memory for the duration of the run, so each unique match triggers at most one OpenAI call per cycle.
 
 

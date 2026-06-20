@@ -149,7 +149,7 @@ def main() -> None:
     # Validate configuration
     if not Config.validate_required_config():
         logger.error("Missing required configuration. Please set KICKTIPP_EMAIL, "
-                     "KICKTIPP_PASSWORD, and either KICKTIPP_COMPETITIONS or KICKTIPP_NAME_OF_COMPETITION. "
+                     "KICKTIPP_PASSWORD, and KICKTIPP_COMPETITIONS. "
                      "If PREDICTOR=ai, also set OPENAI_API_KEY.")
         sys.exit(1)
 

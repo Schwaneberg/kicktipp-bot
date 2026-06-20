@@ -31,22 +31,15 @@ class Config:
         return cls._get_env("KICKTIPP_PASSWORD")
 
     @classmethod
-    def NAME_OF_COMPETITION(cls) -> Optional[str]:
-        return cls._get_env("KICKTIPP_NAME_OF_COMPETITION")
-
-    @classmethod
     def COMPETITIONS_RAW(cls) -> Optional[str]:
         return cls._get_env("KICKTIPP_COMPETITIONS")
 
     @classmethod
     def COMPETITIONS(cls) -> list:
-        """Get list of competitions from KICKTIPP_COMPETITIONS or fall back to single NAME_OF_COMPETITION."""
+        """Get list of competitions from KICKTIPP_COMPETITIONS."""
         competitions_raw = cls._get_env("KICKTIPP_COMPETITIONS")
         if competitions_raw:
             return [c.strip() for c in competitions_raw.split(",") if c.strip()]
-        name = cls._get_env("KICKTIPP_NAME_OF_COMPETITION")
-        if name:
-            return [name]
         return []
 
     @classmethod
@@ -124,11 +117,6 @@ class Config:
             return False
 
         return all(var is not None for var in required_vars)
-
-    @classmethod
-    def get_tipp_url(cls) -> str:
-        """Get the URL for the tipping page for the default competition."""
-        return f"https://www.kicktipp.de/{cls.NAME_OF_COMPETITION()}/tippabgabe"
 
     @classmethod
     def get_tipp_url_for_competition(cls, competition: str) -> str:

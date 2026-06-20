@@ -95,7 +95,6 @@ All standard environment variables from `.env.example` are supported:
 - `KICKTIPP_EMAIL` - Your Kicktipp email (required)
 - `KICKTIPP_PASSWORD` - Your Kicktipp password (required)
 - `KICKTIPP_COMPETITIONS` - Comma-separated list of competitions
-- `KICKTIPP_NAME_OF_COMPETITION` - Single competition (alternative to above)
 - `PREDICTOR` - `ai` or `quotes` (default: ai)
 - `OPENAI_API_KEY` - Required when PREDICTOR=ai
 - `OPENAI_MODEL` - OpenAI model to use (default: gpt-5.5)

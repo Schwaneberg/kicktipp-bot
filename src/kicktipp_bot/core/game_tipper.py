@@ -47,6 +47,7 @@ class GameTipper:
 
         # Per-run state
         self.predictions_cache = {}
+        self.existing_tips = {}
         self.current_competition = ''
 
     def _is_valid_tip(self, tip) -> bool:
@@ -61,7 +62,8 @@ class GameTipper:
 
         Iterates over `Config.COMPETITIONS()` and maintains a per-run in-memory
         cache of predictions so the AI is queried at most once per unique
-        match per run.
+        match per run. If a bet already exists in any configured competition,
+        that tip will be reused for the same match in all other competitions.
         """
         logger.info("Starting game tipping process")
 
@@ -70,27 +72,20 @@ class GameTipper:
             logger.warning("No competitions configured to tip")
             return
 
-        predictor = get_predictor()
-
+        # First pass: scan competitions and collect already placed tips
         try:
             for competition in competitions:
-                logger.info(f"Processing competition: {competition}")
-
+                logger.info(f"Scanning competition for existing bets: {competition}")
                 self.current_competition = competition
+                self._prepare_competition_page(competition)
+                self._reset_state()
+                self._collect_existing_tips_for_competition()
 
-                # Navigate to tipping page for this competition
-                logger.debug("Navigating to tipping page for %s", competition)
-                self.driver.get(Config.get_tipp_url_for_competition(competition))
-
-                # Wait for page to load
-                if not SeleniumUtils.wait_for_page_load(self.driver):
-                    raise GameTippingError("Tipping page failed to load")
-
-                # Additional wait for dynamic content
-                sleep(1)
-
-                # Accept terms and conditions if they appear on the tipping page
-                self._accept_terms_and_conditions()
+            # Second pass: navigate again and tip all unfilled games
+            for competition in competitions:
+                logger.info(f"Processing competition: {competition}")
+                self.current_competition = competition
+                self._prepare_competition_page(competition)
 
                 # Get the number of games available
                 games_count = self._get_games_count()
@@ -124,6 +119,83 @@ class GameTipper:
         finally:
             # Always send grouped notifications at the end, even if errors occurred
             self.notification_manager.send_grouped_notifications()
+
+    def _prepare_competition_page(self, competition: str) -> None:
+        """Open the tipping page for a competition and accept any dialogs."""
+        logger.debug("Navigating to tipping page for %s", competition)
+        self.driver.get(Config.get_tipp_url_for_competition(competition))
+
+        if not SeleniumUtils.wait_for_page_load(self.driver):
+            raise GameTippingError("Tipping page failed to load")
+
+        sleep(1)
+        self._accept_terms_and_conditions()
+
+    def _collect_existing_tips_for_competition(self) -> None:
+        """Collect already placed tips from the currently loaded competition page."""
+        all_rows = self.table_processor.get_all_table_rows()
+        if not all_rows:
+            logger.warning("No table rows found while collecting existing tips")
+            return
+
+        for row_index, _ in enumerate(all_rows):
+            try:
+                row, row_class = self.table_processor.get_row_safely(
+                    all_rows, row_index)
+                if row is None or row_class is None:
+                    continue
+
+                if 'rowheader' in row_class:
+                    self._process_rowheader(row, row_index)
+                elif 'datarow' in row_class:
+                    self._collect_datarow(row)
+            except Exception as e:
+                logger.error(f"Error collecting tips from row {row_index}: {e}")
+                continue
+
+    def _collect_datarow(self, data_row) -> None:
+        """Collect an already placed tip from a game row, if present."""
+        home_team = GameDataExtractor.extract_team_name(
+            data_row, 2, 'home')
+        away_team = GameDataExtractor.extract_team_name(
+            data_row, 3, 'away')
+
+        if not home_team or not away_team:
+            return
+
+        game_time = TimeExtractor.extract_from_datarow(
+            data_row, self.last_seen_time)
+
+        tip_fields = GameDataExtractor.get_tip_fields(data_row)
+        if not tip_fields:
+            return
+
+        home_tip_field, away_tip_field = tip_fields
+        existing_tip = self._get_tip_value(home_tip_field, away_tip_field)
+        if not existing_tip:
+            return
+
+        match_id = f"{home_team}|{away_team}|{game_time.isoformat()}"
+        if match_id not in self.existing_tips:
+            self.existing_tips[match_id] = existing_tip
+            logger.debug(
+                f"Collected existing tip for {match_id}: {existing_tip}")
+
+    def _get_tip_value(self, home_field, away_field) -> Optional[tuple]:
+        home_value = SeleniumUtils.safe_get_attribute(
+            home_field, 'value', 'home tip field') or ''
+        away_value = SeleniumUtils.safe_get_attribute(
+            away_field, 'value', 'away tip field') or ''
+
+        if not home_value.strip() or not away_value.strip():
+            return None
+
+        try:
+            return int(home_value), int(away_value)
+        except ValueError:
+            logger.debug(
+                f"Could not parse existing tip values: '{home_value}', '{away_value}'")
+            return None
 
     def _reset_state(self) -> None:
         """Reset processing state for a new run."""
@@ -269,10 +341,6 @@ class GameTipper:
                 logger.info(f"Game already tipped: {home_val} - {away_val}")
                 return False
 
-            # Check timing constraints
-            if not self._should_tip_game(game_time):
-                return False
-
             # Extract quotes using the new extractor (may be empty for AI predictor)
             quotes = GameDataExtractor.extract_quotes(data_row) or []
             logger.debug(f"Quotes: {quotes}")
@@ -284,11 +352,92 @@ class GameTipper:
             match_id = f"{home_team}|{away_team}|{game_time.isoformat()}"
             tip_prediction_method = None
 
-            # Use per-run predictions cache when available
-            if match_id in self.predictions_cache:
+            # Use an existing tip from any scanned competition if available
+            if match_id in self.existing_tips:
+                tip = self.existing_tips[match_id]
+                tip_prediction_method = 'existing-bet'
+            elif match_id in self.predictions_cache:
                 tip = self.predictions_cache[match_id]
                 tip_prediction_method = 'cached'
             else:
+                predictor = get_predictor()
+                tip = None
+                prediction_method = Config.PREDICTOR()
+                try:
+                    tip = predictor.predict(game, self.current_competition or '')
+                    if not self._is_valid_tip(tip):
+                        raise ValueError(f"Predictor returned invalid tip: {tip}")
+                    self.predictions_cache[match_id] = tip
+                    tip_prediction_method = prediction_method
+                except Exception as e:
+                    logger.warning(
+                        "Predictor %s failed for %s vs %s: %s",
+                        predictor.__class__.__name__,
+                        home_team,
+                        away_team,
+                        e
+                    )
+                    if Config.PREDICTOR() == 'ai':
+                        try:
+                            fallback_predictor = QuotesPredictor()
+                            tip = fallback_predictor.predict(game, self.current_competition or '')
+                            if not self._is_valid_tip(tip):
+                                raise ValueError(f"Fallback predictor returned invalid tip: {tip}")
+                            tip_prediction_method = 'quotes-fallback'
+                            self.predictions_cache[match_id] = tip
+                            logger.info(
+                                "AI predictor failed; falling back to quote-based predictor for %s vs %s: %s - %s",
+                                home_team,
+                                away_team,
+                                tip[0],
+                                tip[1]
+                            )
+                        except Exception as fallback_exc:
+                            logger.error(
+                                "AI predictor failed and quote fallback also failed for %s vs %s: %s",
+                                home_team,
+                                away_team,
+                                fallback_exc
+                            )
+                            try:
+                                self.notification_manager.send_all_notifications(
+                                    game_time,
+                                    home_team,
+                                    away_team,
+                                    quotes,
+                                    (None, None),
+                                    self.current_competition or '',
+                                    prediction_method='ai+quotes-fallback',
+                                    prediction_error=str(fallback_exc)
+                                )
+                            except Exception:
+                                pass
+                            return False
+                    else:
+                        logger.error(
+                            "Predictor failed for %s vs %s and no fallback configured: %s",
+                            home_team,
+                            away_team,
+                            e
+                        )
+                        try:
+                            self.notification_manager.send_all_notifications(
+                                game_time,
+                                home_team,
+                                away_team,
+                                quotes,
+                                (None, None),
+                                self.current_competition or '',
+                                prediction_method=Config.PREDICTOR(),
+                                prediction_error=str(e)
+                            )
+                        except Exception:
+                            pass
+                        return False
+
+            # Check timing constraints unless we are copying an existing bet
+            if tip_prediction_method != 'existing-bet' and not self._should_tip_game(game_time):
+                return False
                 predictor = get_predictor()
                 tip = None
                 prediction_method = Config.PREDICTOR()
@@ -387,7 +536,7 @@ class GameTipper:
             if self._enter_tip(home_tip_field, away_tip_field, tip):
                 try:
                     # Pass competition information
-                    competition = self.current_competition or Config.NAME_OF_COMPETITION() or ''
+                    competition = self.current_competition or ''
                     self.notification_manager.send_all_notifications(
                         game_time,
                         home_team,
